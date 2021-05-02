@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://bitwiseshiftleft.github.io/sjcl/sjcl.js"
+      integrity="sha512-J2eNenPwyfXkMVNMFz9Q54kKfYi5AA3mQWpNgtjSJzsKHtpbhUt/7bvcjGwwmzE8ZUVWMI/ndagIX1lG+SfxGA=="
+      crossorigin="anonymous">
+    </script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+      crossorigin="anonymous">
+  </head>
+  <body>
+    <div class="container">
+      <h1>Narcissistic Randomness</h1>
+      <p>
+        Suppose you are in a group of people, and you all want to choose
+        something at random. However, no one in the group trusts anyone
+        else--each member only trusts themselves. How can you generate
+        a random number everyone trusts?
+      </p>
+      <h2>Conceptual Explanation</h2>
+      <p>
+        In the physical world, there are many solutions to this problem.
+        The group could roll dice, flip coins, or draw slips of paper
+        from a hat. These solutions all reuire that everyone in the
+        group trust that some process (e.g. flipping a coin) is random
+        regardless of who executes it. It turns out that with some
+        clever cryptography, we can avoid making that assumption in the
+        digital world! Let's see how.
+      </p>
+      <h3>A Non-Example</h3>
+      <p>
+        First, let's consider an example of what doesn't work. Let's
+        suppose that Alice and Bob are roommates. One of them has to
+        make dinner, but neither of them want to. To be fair, they
+        decide to choose who makes dinner at random:
+      </p>
+
+      <dl class="row">
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Let's flip a coin. I flip; you guess. Loser makes dinner.
+          Agreed?
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Sounds good. Go ahead and flip.
+        </dd>
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Okay. I'm flipping, ... and it's heads.
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Yes! I called heads! Looks like you're making dinner
+          tonight.
+        </dd>
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Wait a minute; that doesn't work. How do I know you actually
+          called heads?
+        </dd>
+      </dl>
+
+      <p>
+        So that doesn't work. Let's try again, only this time the caller
+        has to call the toss before they know the outcome.
+      </p>
+
+      <dl class="row">
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Okay, let's try again. This time, you have to call the toss
+          before I tell you the outcome.
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Okay fine. I call tails.
+        </dd>
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Okay. I'm flipping, ... and it's heads. Looks like you're
+          making dinner!
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Hold up. You're just saying it came up heads so that I lose!
+        </dd>
+      </dl>
+
+      <p>
+        Whoever goes last has the power to control the group's choice,
+        which is not acceptable in a group of paranoid people. We just
+        considered a simple example here, but think about how the same
+        problem would exist for other schemes.
+      </p>
+
+      <h3>Solution: Commitment Schemes</h3>
+
+      <p>
+        Here's one solution to this problem of who goes first: have all
+        group members commit to their secret before revealing it. In the
+        coin flip example above, the secrets are Bob's call and the
+        outcome of Alice's flip. Here's how this might work:
+      </p>
+
+      <dl class="row">
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          Okay, I have a solution. Here's the SHA-256 hash of my call:
+          <code>853ad5687e2c182baeee91d09ec990754b45516f242ffc39d34a51808b93942d</code>.
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Hmm okay, this seems interesting. Let's try it! I'm flipping,
+          ... and it's heads.
+        </dd>
+        <dt class="col-sm-1">Alice</dt>
+        <dd class="col-sm-11">
+          I called heads! You can verify like this in your terminal:
+          <code>
+            echo "I call heads. Why didn't we just get a meal plan?"
+            | shasum -a 256
+          </code>
+        </dd>
+        <dt class="col-sm-1">Bob</dt>
+        <dd class="col-sm-11">
+          Fine, I'll make dinner. But you'd better not complain about my
+          cooking!
+        </dd>
+      </dl>
+
+      <p>
+        Here' Alice committed to her choice by reporting the SHA-256
+        hash of her call. After Bob reports the outcome of the toss, he
+        can verify that Alice really did call heads before the toss by
+        hashing her statement. Importantly though, since SHA-256 hasn't
+        been broken yet, Bob cannot determine Alice's guess from her
+        hash. The hash is a commitment, but it doesn't reveal the
+        secret.
+      </p>
+      <p>
+        You might be wondering what the bit about meal plans is all
+        about. That's just a bit of randomness to stop Bob from hashing
+        <code>I call heads.</code> and comparing with the hash Alice
+        provided.
+      </p>
+      <h3>Keybase's Strategy</h3>
+      <p>
+        <a href="https://keybase.io">Keybase</a> uses commitment schemes
+        to let groups of people securely make random choices without
+        trusting anyone else in the group. In fact, this guide and the
+        explanation above were based on a
+        <a href="https://keybase.io/blog/cryptographic-coin-flipping">
+          Keybase blog post
+        </a>
+        from 2019. Their algorithm works like this:
+      </p>
+      <ol>
+        <li>Each participant generates a random 32-byte secret.</li>
+        <li>Everyone commits to their secret by publishing the SHA-256
+          hash of their secret.</li>
+        <li>Everyone reveals their secrets to the group and checks that
+          everyone else's secrets match their commitments.</li>
+        <li>Every participant XORs all the secrets together to generate
+          a shared random seed.</li>
+        <li>Now, everyone can form the same pseudorandom bit sequence
+          seeded with this shared random seed.</li>
+      </ol>
+      <p>
+        We will follow a similar approach, except instead of using the
+        random seed to create a pseudorandom sequence, we'll just use
+        the seed itself. This means that we only have 32 bytes of
+        random bits to work with, but that's plenty for most choices.
+      </p>
+      <h2>Narcissistic Randomness in Practice</h2>
+      <p>
+        Here is a simple web app that implements what I'm calling
+        Narcissistic Randomness. All the computations occur in your
+        browser with JavaScript. I encourage you to look at the source
+        of this page to see how the calculations work.
+      </p>
+      <h3>Generate Secret</h3>
+      <p>
+        The first step is to generate a 32-byte secret. You can click
+        the <code>Generate</code> button to make one or provide your
+        own. Secrets must be base64 encoded.
+      </p>
+      <form>
+        <div class="row mb-3">
+            <label for="secret" class="col-md-4 col-form-label">Secret:</label>
+          <div class="col-md-8">
+            <input type="text" id="secret" name="secret" class="form-control">
+          </div>
+        </div>
+        <button type="button" onClick="generateSecret()"
+          class="btn btn-primary">Generate</button>
+      </form>
+      <script>
+        function generateSecret() {
+          let secretElem = document.getElementById('secret');
+          secretElem.value = sjcl.codec.base64.fromBits(sjcl.random.randomWords(8));
+        };
+      </script>
+      <h3>Generate Commitment Hash</h3>
+      <p>
+        Next, we need to generate a hash of the secret. This will serve
+        as our commitment to the secret we generated above. Click
+        <code>Generate Commitment</code> and send the commitment to the
+        rest of the group.
+      </p>
+      <form>
+        <div class="row mb-3">
+          <label for="commitment" class="col-md-4 col-form-label">
+            Commitment Hash:
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="commitment" name="commitment"
+              class="form-control">
+          </div>
+        </div>
+        <button type="button" onClick="generateCommitment()"
+          class="btn btn-primary">
+          Generate Commitment
+        </button>
+      </form>
+      <script>
+        function generateCommitment() {
+          let secret = document.getElementById('secret').value;
+          let hash = sjcl.codec.base64.fromBits(
+            sjcl.hash.sha256.hash(secret));
+          let commitmentElem = document.getElementById('commitment');
+          commitmentElem.value = hash;
+        };
+      </script>
+      <h3>Collect Commitments and Secrets</h3>
+      <p>
+        Now, it's time to collect everyone's commitments and secrets.
+        First, copy and paste everyone else's commitments below, one
+        commitment per line. Once everyone has done that, you can all
+        share your secrets. Collect these too and paste them below, one
+        secret per line. Make sure the commitments and secrets are in
+        the same order! You can verify that everyone's secret matches
+        their commitment by clicking <code>Verify Commitments</code>
+        below. The result is a list of booleans showing the validity of
+        each commitment-secret pair, in the same order you listed them
+        in the text boxes.
+      </p>
+      <form>
+        <div class="row mb-3">
+          <div class="col-lg">
+            <label for="commitments" class="form-label">
+              Commitments from Group:
+            </label>
+            <textarea
+              id="commitments" name="commitments" rows=3
+              class="form-control"></textarea>
+          </div>
+          <div class="col-lg">
+            <label for="secrets" class="form-label">
+              Secrets from Group:
+            </label>
+            <textarea
+              id="secrets" name="secrets" rows=3
+              class="form-control"></textarea>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label for="validities" class="col-md-4 col-form-label">
+            Validities:
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="validities" name="validities"
+              readonly class="form-control">
+            </input>
+          </div>
+        </div>
+        <button type="button" onClick="verifyCommitments()"
+          class="btn btn-primary">
+          Verify Commitments
+        </button>
+      </form>
+      <script>
+        function verifyCommitments() {
+          let commitments = document.getElementById(
+            'commitments').value.split('\n');
+          let secrets = document.getElementById('secrets').value.split('\n');
+          let validities = [];
+          for (i = 0; i < commitments.length; i++) {
+            let commitment = commitments[i];
+            let secret = secrets[i];
+            let hash = sjcl.codec.base64.fromBits(
+              sjcl.hash.sha256.hash(secret));
+            validities.push(hash === commitment);
+          }
+          let result = validities.join(', ');
+          document.getElementById('validities').value = result;
+        };
+      </script>
+      <h3>Generate Random Seed from Secrets</h3>
+      <p>
+        Now that we have everyone's secrets and have confirmed their
+        commitments, we can create the random seed. This is a simple
+        bitwise XOR-ing of all the secrets. Click
+        <code>Generate Seed</code>.
+      </p>
+      <form>
+        <div class="row mb-3">
+          <label for="seed" class="col-md-4 col-form-label">
+            Random Seed
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="seed" name="seed" readonly
+              class="form-control">
+          </div>
+        </div>
+        <button type="button" onClick="generateSeed()"
+          class="btn btn-primary">
+          Generate Seed
+        </button>
+      </form>
+      <script>
+        function xorBase64(a, b) {
+          let hexA = sjcl.codec.hex.fromBits(
+            sjcl.codec.base64.toBits(a));
+          let hexB = sjcl.codec.hex.fromBits(
+            sjcl.codec.base64.toBits(b));
+          if (hexA.length !== hexB.length) {
+            return null;
+          }
+          let hexArr = []
+          for (let i = 0; i < hexA.length; i++ ) {
+            let charA = hexA[i];
+            let charB = hexB[i];
+            let xor = parseInt(charA, 16) ^ parseInt(charB, 16);
+            hexArr.push(xor.toString(16))
+          }
+          return sjcl.codec.base64.fromBits(
+            sjcl.codec.hex.toBits(hexArr.join('')));
+        }
+        function generateSeed() {
+          let secrets = document.getElementById('secrets').value.split('\n');
+          let seed = document.getElementById('secret').value;
+          for (secret of secrets) {
+            if (secret.length !== 0) {
+              seed = xorBase64(seed, secret);
+            }
+          }
+          document.getElementById('seed').value = seed;
+        }
+      </script>
+      <h3>Generate a Random Integer</h3>
+      <p>
+        Now that we have a shared random seed, we can choose a random
+        number. Pick a minimum and maximum value below, and generate
+        your number!
+      </p>
+      <p>
+        To pick a random number, we first determine how many random bits
+        we need to to make a random choice between the specified minimum
+        and maximum values. Then, we take just enough digits from the
+        hex-encoded seed to get that many bits. We drop excess bits and
+        evaluate the remaining bits as a number. If the number is at
+        most <code>min - max</code>, we add it to <code>min</code> to
+        get our final answer. Otherwise, we move on to the next set of
+        digits in the seed.
+      </p>
+      <form>
+        <div class="row mb-3">
+          <label for="min" class="col-md-4 col-form-label">
+            Minimum (inclusive)
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="min" name="min" class="form-control">
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label for="max" class="col-md-4 col-form-label">
+            Maximum (inclusive)
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="max" name="max" class="form-control">
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label for="random" class="col-md-4 col-form-label">
+            Random Integer
+          </label>
+          <div class="col-md-8">
+            <input type="text" id="random" name="random" readonly
+              class="form-control">
+          </div>
+        </div>
+        <button type="button" onClick="generateRandom()"
+          class="btn btn-primary">
+          Generate Random Number
+        </button>
+      </form>
+      <script>
+        function randNumber(min, max, seedHex){
+          let bitsNeeded = Math.ceil(Math.log2(max - min + 1));
+          let hexNeeded = Math.ceil(bitsNeeded / 4);
+          while (seedHex.length > hexNeeded) {
+            // Note that this doesn't work for large ranges!
+            let rand = parseInt(seedHex.substring(0, hexNeeded), 16);
+            seedHex = seedHex.substring(hexNeeded);
+            // Drop extra bits.
+            rand = rand >> (hexNeeded * 4 - bitsNeeded);
+            if (rand <= max - min) {
+              return rand;
+            }
+          }
+          return null;
+        }
+        function generateRandom() {
+          let seed = document.getElementById('seed').value;
+          let seedHex = sjcl.codec.hex.fromBits(
+            sjcl.codec.base64.toBits(seed));
+          let min = parseInt(document.getElementById('min').value, 10);
+          let max = parseInt(document.getElementById('max').value, 10);
+          let rand = randNumber(min, max, seedHex);
+          document.getElementById('random').value = min + rand;
+        }
+      </script>
+      <h2>Acknowledgments</h2>
+      <p>
+        This guide was heavily inspired by Keybase as mentioned above. It
+        makes use of the
+        <a href="https://bitwiseshiftleft.github.io/sjcl/">
+          Stanford Javascript Crypto Library (SJCL)
+        </a>, which is Copyright &copy; 2009-2015, Emily Stark, Mike
+        Hamburg and Dan Boneh at Stanford University, and
+        <a href="https://getbootstrap.com/">Bootstrap</a>, which is
+        Copyright &copy; 2011-2021 Twitter, Inc. and Copyright &copy;
+        2011-2021 The Bootstrap Authors.
+      </p>
+      <p>
+        This guide is Copyright &copy; 2021
+        <a href="https://u8nwxd.github.io">Christopher Skalnik</a>. It
+        was originally developed for a workshop at
+        <a href="https://codethechange.stanford.edu">
+          Stanford Code the Change
+        </a>. It is licensed under a
+        <a href="https://creativecommons.org/licenses/by/4.0/">
+          Creative Commons Attribution 4.0 International License
+        </a>.
+        <br>
+        <a rel="license"
+          href="http://creativecommons.org/licenses/by/4.0/">
+          <img alt="Creative Commons License"
+               style="border-width:0"
+               src="https://i.creativecommons.org/l/by/4.0/88x31.png"
+          />
+        </a>
+    </div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+      crossorigin="anonymous">
+    </script>
+  </body>
+</html>
